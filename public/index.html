@@ -504,6 +504,7 @@
     cursor:pointer;
   }
   #saveBtn{background:var(--gold); color:var(--black);}
+  #resetBtn{background:var(--red); color:var(--cream-soft);}
   .add-item-btn{
     display:none;
     margin-top:0.6rem;
@@ -862,6 +863,7 @@
 <div id="editBar">
   <span>Editing — click any highlighted text to change it.</span>
   <button id="saveBtn" type="button">Save changes</button>
+  <button id="resetBtn" type="button">Reset to page defaults</button>
   <button id="exitBtn" type="button">Exit without saving</button>
 </div>
 <div id="toast"></div>
@@ -911,6 +913,7 @@
   var lockBtn = document.getElementById("lockBtn");
   var editBar = document.getElementById("editBar");
   var saveBtn = document.getElementById("saveBtn");
+  var resetBtn = document.getElementById("resetBtn");
   var exitBtn = document.getElementById("exitBtn");
   var toast = document.getElementById("toast");
 
@@ -1316,6 +1319,41 @@
       }
     }catch(e){
       showToast("Save failed \u2014 network error: " + (e && e.message ? e.message : e), 6000);
+    }
+  });
+
+  resetBtn.addEventListener("click", async function(){
+    var ok = window.confirm(
+      "This clears ALL saved edits (prices, items, custom sections) for every visitor, " +
+      "and restores this page's built-in content. This cannot be undone. Continue?"
+    );
+    if (!ok) return;
+
+    try{
+      var res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: EDIT_PASSWORD,
+          data: { sections: {}, labels: {}, customSections: [] }
+        })
+      });
+      if (res.ok){
+        remoteData = { sections: {}, labels: {}, customSections: [] };
+        discardUnsavedCustomSections();
+        exitEditMode();
+        applySections();
+        applyLabels();
+        showToast("Reset \u2014 everyone now sees this page's built-in content.");
+      } else if (res.status === 401){
+        showToast("Reset rejected \u2014 password mismatch on the server.");
+      } else {
+        var detail = "";
+        try{ detail = await res.text(); }catch(e2){}
+        showToast("Reset failed (HTTP " + res.status + ") " + detail.slice(0, 120), 6000);
+      }
+    }catch(e){
+      showToast("Reset failed \u2014 network error: " + (e && e.message ? e.message : e), 6000);
     }
   });
 
